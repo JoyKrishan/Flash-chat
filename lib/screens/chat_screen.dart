@@ -13,6 +13,7 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
+  final messageTextController = TextEditingController();
   final _auth = FirebaseAuth.instance;
   final _fireStore = FirebaseFirestore.instance;
   User loggedInUser;
@@ -41,13 +42,13 @@ class _ChatScreenState extends State<ChatScreen> {
   //   }
   // }
 
-  void messageStream() async {
-    await for (var snapshot in _fireStore.collection('/messages').snapshots()) {
-      for (var messages in snapshot.docs) {
-        print(messages.data()['text']);
-      }
-    }
-  }
+  // void messageStream() async {
+  //   await for (var snapshot in _fireStore.collection('/messages').snapshots()) {
+  //     for (var messages in snapshot.docs) {
+  //       print(messages.data()['text']);
+  //     }
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -77,9 +78,11 @@ class _ChatScreenState extends State<ChatScreen> {
               stream: _fireStore.collection('/messages').snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
-                  return Center(
-                    child: CircularProgressIndicator(
-                      backgroundColor: Colors.lightBlueAccent,
+                  return Expanded(
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        backgroundColor: Colors.lightBlueAccent,
+                      ),
                     ),
                   );
                 }
@@ -89,11 +92,13 @@ class _ChatScreenState extends State<ChatScreen> {
                   String text = message.data()['text'];
                   String sender = message.data()['sender'];
                   msgBubble.add(
-                    MessageBubble(sender: sender, messageText: text),
+                    MessageBubble(sender: sender, messageText: text, isMe: sender == loggedInUser.email),
                   );
                 }
                 return Expanded(
                   child: ListView(
+                    padding:
+                        EdgeInsets.symmetric(vertical: 20.0, horizontal: 10.0),
                     reverse: true,
                     children: msgBubble,
                   ),
@@ -107,6 +112,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 children: <Widget>[
                   Expanded(
                     child: TextField(
+                      controller: messageTextController,
                       onChanged: (value) {
                         //Do something with the user input.
                         messageText = value;
@@ -117,10 +123,13 @@ class _ChatScreenState extends State<ChatScreen> {
                   FlatButton(
                     onPressed: () {
                       //Implement send functionality.
-                      _fireStore.collection('/messages').add({
-                        'text': messageText,
-                        'sender': loggedInUser.email,
-                      });
+                      messageTextController.clear();
+                      if (messageText != null) {
+                        _fireStore.collection('/messages').add({
+                          'text': messageText,
+                          'sender': loggedInUser.email,
+                        });
+                      }
                     },
                     child: Text(
                       'Send',
@@ -140,23 +149,35 @@ class _ChatScreenState extends State<ChatScreen> {
 class MessageBubble extends StatelessWidget {
   final String sender;
   final String messageText;
-  MessageBubble({this.sender, this.messageText});
+  final bool isMe;
+  MessageBubble({this.sender, this.messageText, this.isMe});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.all(10.0),
       child: Column(
+        crossAxisAlignment:isMe?CrossAxisAlignment.end: CrossAxisAlignment.start,
         children: [
-          Text(sender, style: TextStyle(color: Colors.grey),),
+          Text(
+            sender,
+            style: TextStyle(color: Colors.grey),
+          ),
           Material(
-            color: Colors.lightBlueAccent,
-            borderRadius: BorderRadius.circular(20.0),
+            elevation: 5.0,
+            color:isMe?Colors.lightBlueAccent: Colors.white,
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(30.0),
+              topLeft:isMe? Radius.circular(30.0): Radius.zero,
+              bottomRight: Radius.circular(30.0),
+              topRight: isMe== false? Radius.circular(30.0):Radius.zero,
+              
+            ),
             child: Padding(
               padding: const EdgeInsets.all(10.0),
               child: Text(
                 messageText,
-                style: TextStyle(color: Colors.white, fontSize: 10.0),
+                style: TextStyle(color:isMe?Colors.white:Colors.black54, fontSize: 15.0),
               ),
             ),
           ),
